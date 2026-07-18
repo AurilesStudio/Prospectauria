@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Palworld — Suivi de progression</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="icon" href="./assets/pals/111.png">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🥚 <span>Palworld Tracker</span></div>
+    <nav class="nav">
+      <button class="nav-btn on" data-tab="paldex">📕 Paldex</button>
+      <button class="nav-btn" data-tab="breeding">🥚 Breeding</button>
+      <button class="nav-btn" data-tab="passifs">✨ Passifs</button>
+      <button class="nav-btn" data-tab="joueur">🛡️ Joueur</button>
+      <button class="nav-btn" data-tab="fabrications">🔧 Fabrications</button>
+    </nav>
+    <div class="tools">
+      <button id="btn-export" class="tool-btn" title="Exporter la sauvegarde">⬇︎ Export</button>
+      <label class="tool-btn" title="Importer une sauvegarde">⬆︎ Import
+        <input id="file-import" type="file" accept="application/json" hidden></label>
+    </div>
+  </header>
+
+  <main id="view" class="view"><div class="loading">Chargement des données…</div></main>
+
+  <div id="modal" class="modal">
+    <div class="modal-inner">
+      <button id="modal-close" class="modal-close" aria-label="Fermer">✕</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <span class="muted small">Données Pals : mlg404/palworld-paldex-api · Guides indicatifs (Palworld 1.0). Progression sauvegardée localement dans ton navigateur.</span>
+  </footer>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
