@@ -30,15 +30,18 @@ export function titleCase(s) {
 }
 
 // État chargé
-export const DB = { pals: [], byKey: new Map(), breeding: {}, parentsOf: {}, resultOf: new Map() };
+export const DB = { pals: [], byKey: new Map(), byNameEn: new Map(), breeding: {}, parentsOf: {}, resultOf: new Map(), meta: null };
 
 export async function loadData() {
-  const [pals, breeding] = await Promise.all([
-    fetch('./data/pals.json').then((r) => r.json()),
-    fetch('./data/breeding.json').then((r) => r.json()),
+  const [pals, breeding, meta] = await Promise.all([
+    fetchJSON('./data/pals.json'),
+    fetchJSON('./data/breeding.json'),
+    fetchJSON('./data/meta.json').catch(() => null),
   ]);
   DB.pals = pals;
+  DB.meta = meta;
   DB.byKey = new Map(pals.map((p) => [p.key, p]));
+  DB.byNameEn = new Map(pals.map((p) => [p.nameEn, p]));
   DB.breeding = breeding; // { childKey: [[parentA, parentB], ...] }
   DB.parentsOf = breeding;
 
@@ -53,8 +56,16 @@ export async function loadData() {
   return DB;
 }
 
+function fetchJSON(url) {
+  return fetch(url).then((r) => { if (!r.ok) throw new Error(url); return r.json(); });
+}
+
 export function pairKey(a, b) {
   return [a, b].sort().join('|');
+}
+
+export function palByNameEn(n) {
+  return DB.byNameEn.get(n) || null;
 }
 
 // Résultat d'un croisement A + B

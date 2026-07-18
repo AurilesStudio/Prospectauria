@@ -1,10 +1,11 @@
 // app.js — UI et interactions
 import {
-  DB, loadData, pal, palImg, elImg, workImg, parentsFor, breedResult,
+  DB, loadData, pal, palByNameEn, palImg, elImg, workImg, parentsFor, breedResult,
   EL_FR, EL_COLOR, WORK_FR, GENUS_FR, SIZE_FR, titleCase,
 } from './data.js';
 import { store } from './store.js';
 import { PASSIVES, BUILDS, PROGRESSION, TECH_TREE, BOSSES, COUNTERS, recommendRole, buildFor } from './content.js';
+import { checkForUpdates, getStatus } from './update.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const view = () => $('#view');
@@ -25,11 +26,22 @@ function esc(s) {
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// ---------- badges ----------
+// ---------- badges & vignettes ----------
 function typeBadges(p) {
+  if (!p.types || !p.types.length) {
+    return '<span class="badge unknown" title="Élément non encore renseigné (données 1.0)">? élément</span>';
+  }
   return p.types.map((t) => `<span class="badge" style="background:${EL_COLOR[t] || '#555'}">
     <img src="${elImg(t)}" alt=""> ${EL_FR[t] || t}</span>`).join('');
 }
+
+// Vignette d'un Pal (image ou placeholder coloré si absente)
+function thumb(p, cls = '') {
+  if (p && p.hasImage) return `<img loading="lazy" class="${cls}" src="${palImg(p.key)}" alt="${esc(p.name)}">`;
+  const col = p && p.types && p.types[0] ? EL_COLOR[p.types[0]] : '#39445e';
+  return `<span class="noimg ${cls}" style="--c:${col}">#${p ? p.id : '?'}</span>`;
+}
+function thumbKey(key, cls = '') { return thumb(pal(key), cls); }
 function workChips(p) {
   return [...p.suitability].sort((a, b) => b.level - a.level).map((w) => `
     <span class="work" title="${WORK_FR[w.type] || w.type}">
@@ -41,7 +53,7 @@ function workChips(p) {
 function matchesFilters(p) {
   if (ui.search) {
     const q = ui.search.toLowerCase();
-    if (!(p.name.toLowerCase().includes(q) || p.key.includes(q))) return false;
+    if (!(p.name.toLowerCase().includes(q) || (p.nameEn || '').toLowerCase().includes(q) || String(p.id).includes(q))) return false;
   }
   if (ui.fType && !p.types.includes(ui.fType)) return false;
   if (ui.fWork && !p.suitability.some((w) => w.type === ui.fWork)) return false;
@@ -92,9 +104,10 @@ function palCard(p) {
   const fav = store.isFav(p.key);
   return `<div class="card ${own ? 'owned' : ''}" data-pal="${p.key}">
     <button class="star ${fav ? 'on' : ''}" data-fav="${p.key}" title="Favori">★</button>
-    <div class="card-img"><img loading="lazy" src="${palImg(p.key)}" alt="${esc(p.name)}">
+    <div class="card-img">${thumb(p)}
+      ${p.isVariant ? '<span class="vtag" title="Variante">✦</span>' : ''}
       ${own ? '<span class="check">✓</span>' : ''}</div>
-    <div class="dex">#${p.key}</div>
+    <div class="dex">#${p.id}</div>
     <div class="pname">${esc(p.name)}</div>
     <div class="badges">${typeBadges(p)}</div>
   </div>`;
@@ -120,15 +133,20 @@ function passiveTag(id) {
 
 function breedingParentsBlock(p) {
   const pairs = parentsFor(p.key);
-  if (!pairs.length) return '<p class="muted">Aucune recette de breeding connue (capture uniquement, ou œuf).</p>';
+  if (!pairs.length) {
+    if (!p.hasBreeding) {
+      return '<p class="muted">🔄 Recettes de breeding non encore disponibles pour ce Pal 1.0. Elles seront ajoutées à la prochaine mise à jour des données.</p>';
+    }
+    return '<p class="muted">Aucune recette de breeding connue (capture uniquement, ou œuf).</p>';
+  }
   const shown = pairs.slice(0, 40);
   const rows = shown.map(([a, b]) => {
     const pa = pal(a), pb = pal(b);
     if (!pa || !pb) return '';
     return `<div class="combo">
-      <span class="mini" data-pal="${a}"><img src="${palImg(a)}" alt=""> ${esc(pa.name)}</span>
+      <span class="mini" data-pal="${a}">${thumb(pa, 'mini-img')} ${esc(pa.name)}</span>
       <span class="plus">+</span>
-      <span class="mini" data-pal="${b}"><img src="${palImg(b)}" alt=""> ${esc(pb.name)}</span>
+      <span class="mini" data-pal="${b}">${thumb(pb, 'mini-img')} ${esc(pb.name)}</span>
     </div>`;
   }).join('');
   const more = pairs.length > shown.length ? `<div class="muted">… +${pairs.length - shown.length} autres combinaisons</div>` : '';
@@ -146,15 +164,17 @@ function openDetail(key) {
   const body = `
     <div class="detail">
       <div class="detail-head">
-        <img class="dimg" src="${palImg(p.key)}" alt="${esc(p.name)}">
+        ${thumb(p, 'dimg')}
         <div class="dmeta">
-          <div class="dtitle">#${p.key} · ${esc(p.name)}
+          <div class="dtitle">#${p.id} · ${esc(p.name)}
+            ${p.isVariant ? '<span class="chip-tag">Variante</span>' : ''}
+            ${p.predator ? '<span class="chip-tag pred">Prédateur</span>' : ''}
             <button class="star ${fav ? 'on' : ''}" data-fav="${p.key}">★</button></div>
+          <div class="muted small">${p.nameEn !== p.name ? esc(p.nameEn) + ' · ' : ''}${p.wildLevel && p.wildLevel[0] ? `Niv. sauvage ${p.wildLevel[0]}–${p.wildLevel[1]}` : ''}</div>
           <div class="badges">${typeBadges(p)}</div>
-          <div class="muted small">${GENUS_FR[p.genus] || p.genus} · ${SIZE_FR[p.size] || p.size} · Rareté ${p.rarity}${p.rarity >= 20 ? ' (Légendaire)' : ''}</div>
+          <div class="muted small">${GENUS_FR[p.genus] || p.genus} · ${SIZE_FR[p.size] || p.size} · Rareté ${p.rarity}${p.rarity >= 10 ? ' ★' : ''}${p.nocturnal ? ' · 🌙 Nocturne' : ''}</div>
           <button class="own-btn ${own ? 'on' : ''}" data-toggleown="${p.key}">
             ${own ? '✓ Obtenu' : '+ Marquer comme obtenu'}</button>
-          ${p.wiki ? `<a class="wiki" href="${esc(p.wiki)}" target="_blank" rel="noopener">Wiki ↗</a>` : ''}
         </div>
       </div>
 
@@ -170,7 +190,7 @@ function openDetail(key) {
       ${p.suitability.length ? `<div class="dsection"><h4>🔧 Aptitudes de travail</h4>
         <div class="works">${workChips(p)}</div></div>` : ''}
 
-      ${p.partnerSkill.name ? `<div class="dsection"><h4>🤝 Compétence de partenaire — ${titleCase(p.partnerSkill.name)}</h4>
+      ${p.partnerSkill && p.partnerSkill.name ? `<div class="dsection"><h4>🤝 Compétence de partenaire — ${esc(p.partnerSkill.name)}</h4>
         <p class="muted small">${esc(p.partnerSkill.description || '')}</p></div>` : ''}
 
       <div class="dsection reco">
@@ -243,7 +263,7 @@ function renderBreedBody() {
 function resultCard(key) {
   const p = pal(key);
   return `<div class="rcard" data-pal="${key}">
-    <img src="${palImg(key)}" alt=""><div><div class="rname">#${key} · ${esc(p.name)}</div>
+    ${thumb(p, 'rimg')}<div><div class="rname">#${p.id} · ${esc(p.name)}</div>
     <div class="badges">${typeBadges(p)}</div></div></div>`;
 }
 
@@ -390,7 +410,27 @@ function renderAccueil() {
       <div class="dash-box"><h3>🗿 Collectibles</h3>${counters}</div>
       <div class="dash-box"><h3>🎯 Prochains objectifs</h3><ul class="todo">${todoHtml}</ul>
         <button class="link-btn" data-goto="objectifs">Gérer mes objectifs →</button></div>
-    </div>`;
+    </div>
+    ${dataBox()}`;
+}
+
+function dataBox() {
+  const m = DB.meta || {};
+  const c = m.counts || {};
+  const s = getStatus();
+  const total = DB.pals.length;
+  const last = s.checkedAt ? new Date(s.checkedAt).toLocaleString('fr-FR') : 'jamais';
+  const state = s.online === false ? '<span class="muted">hors ligne</span>'
+    : s.updateAvailable ? '<span class="upd">mise à jour dispo</span>'
+    : s.checkedAt ? '<span class="ok">à jour ✓</span>' : '';
+  return `<div class="dash-box data-box"><h3>🗃️ Données &amp; mises à jour</h3>
+    <div class="muted small">Palworld ${esc(m.palworldVersion || '?')} · dataset ${esc(m.datasetBuild || '?')} (PalCalc ${esc(m.sources?.palcalc?.version || '?')})</div>
+    <div class="cov">
+      <span>${total} Pals</span><span>${c.withImage || 0} avec image</span>
+      <span>${c.withElement || 0} avec élément</span><span>${c.withBreeding || 0} avec breeding</span>
+    </div>
+    <div class="muted small">Dernière vérification : ${last} · ${state}</div>
+    <button class="tool-btn" data-checkupdates>🔄 Vérifier les mises à jour</button></div>`;
 }
 
 // ---------- Base : meilleurs Pals par tâche ----------
@@ -406,7 +446,7 @@ function renderBase() {
     list = list.slice(0, 10);
     const rows = list.map(({ p, lvl }) => `
       <div class="wp-row ${store.isOwned(p.key) ? 'own' : ''}" data-pal="${p.key}">
-        <img src="${palImg(p.key)}" alt=""><span class="wp-name">${esc(p.name)}</span>
+        ${thumb(p, 'wp-img')}<span class="wp-name">${esc(p.name)}</span>
         <span class="wp-lvl">Niv. ${lvl}</span>${store.isOwned(p.key) ? '<span class="wp-check">✓</span>' : ''}</div>`).join('')
       || '<div class="muted small">Aucun de tes Pals pour cette tâche.</div>';
     return `<div class="wp-card"><div class="wp-head"><img src="${workImg(w)}" alt="">${WORK_FR[w]}</div>${rows}</div>`;
@@ -419,16 +459,17 @@ function renderBase() {
 }
 
 // ---------- Boss ----------
-function bossRow(b, taskId, key, meta) {
+function bossRow(b, taskId, palName, meta) {
   const done = store.isTaskDone(taskId);
-  const img = key && DB.byKey.has(key) ? `<img class="brimg" src="${palImg(key)}" alt="" data-pal="${key}">` : '<span class="brimg ph">👑</span>';
+  const p = palName ? palByNameEn(palName) : null;
+  const img = p ? `<span class="brimg-wrap" data-pal="${p.key}">${thumb(p, 'brimg')}</span>` : '<span class="brimg ph">👑</span>';
   return `<label class="boss-row ${done ? 'done' : ''} ${b.tier === 'legend' ? 'legend' : ''}">
     <input type="checkbox" data-task="${taskId}" ${done ? 'checked' : ''}>
     ${img}<span class="br-name">${esc(b.name)}</span><span class="br-meta muted small">${esc(meta)}</span></label>`;
 }
 function renderBoss() {
   const towers = PROGRESSION.map((b) => bossRow({ name: b.boss.split(' — ')[1] || b.boss, tier: 'tower' }, 'boss-' + b.id, null, '')).join('');
-  const alphas = BOSSES.map((b) => bossRow(b, 'alpha-' + b.id, b.key, `Niv. ~${b.lvl} · ${b.region}`)).join('');
+  const alphas = BOSSES.map((b) => bossRow(b, 'alpha-' + b.id, b.name, `Niv. ~${b.lvl} · ${b.region}`)).join('');
   const tDone = PROGRESSION.filter((b) => store.isTaskDone('boss-' + b.id)).length;
   const aDone = BOSSES.filter((b) => store.isTaskDone('alpha-' + b.id)).length;
   const tot = PROGRESSION.length + BOSSES.length; const done = tDone + aDone;
@@ -473,6 +514,30 @@ function renderObjectifs() {
       <button id="obj-add-btn" class="seg-btn on">+ Ajouter</button></div>
     <div class="suggest">${OBJ_SUGGEST.map((s) => `<button class="chip" data-objsuggest="${esc(s)}">+ ${esc(s)}</button>`).join('')}</div>
     <div class="obj-list">${list}</div>`;
+}
+
+// ---------- Bandeau de mise à jour ----------
+function renderUpdateBanner() {
+  const box = document.getElementById('update-banner');
+  if (!box) return;
+  const s = getStatus();
+  if (s.updateAvailable) {
+    box.innerHTML = `<div class="ub">🔄 De nouvelles données Palworld sont disponibles
+      (PalCalc ${esc(s.remoteVersion)} vs ${esc(s.localVersion)}). Les prochains Pals/recettes seront intégrés à la prochaine mise à jour du dataset.
+      <button class="ub-x" data-ubclose>✕</button></div>`;
+    box.style.display = '';
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+async function runUpdateCheck(force) {
+  const btn = document.querySelector('[data-checkupdates]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Vérification…'; }
+  await checkForUpdates(force);
+  renderUpdateBanner();
+  if (ui.tab === 'accueil') renderAccueil();
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 Vérifier les mises à jour'; }
 }
 
 // ---------- Modal plumbing ----------
@@ -532,7 +597,10 @@ function wire() {
       own.classList.toggle('on', now); own.textContent = now ? '✓ Obtenu' : (own.classList.contains('own-btn') ? '+ Marquer comme obtenu' : '+ Marquer obtenu'); return; }
 
     const card = t.closest('[data-pal]');
-    if (card && !t.closest('[data-fav]')) { openDetail(card.dataset.pal); return; }
+    if (card && !t.closest('[data-fav]')) {
+      if (t.closest('.boss-row')) e.preventDefault();
+      openDetail(card.dataset.pal); return;
+    }
 
     const alt = t.closest('[data-altbuild]');
     if (alt) { const [k, r] = alt.dataset.altbuild.split(':'); showAltBuild(k, r); return; }
@@ -547,6 +615,9 @@ function wire() {
 
     const bmode = t.closest('[data-bmode]');
     if (bmode) { ui.breedMode = bmode.dataset.bmode; renderBreeding(); return; }
+
+    if (t.closest('[data-checkupdates]')) { runUpdateCheck(true); return; }
+    if (t.closest('[data-ubclose]')) { const b = document.getElementById('update-banner'); if (b) b.style.display = 'none'; return; }
 
     const goto = t.closest('[data-goto]');
     if (goto) { ui.tab = goto.dataset.goto; render(); window.scrollTo(0, 0); return; }
@@ -613,4 +684,6 @@ function refreshGridOnly() {
   bA = DB.pals[0].key; bB = DB.pals[1].key; bTarget = DB.pals[DB.pals.length - 1].key;
   wire();
   render();
+  // Recherche de mise à jour au lancement (non bloquant)
+  runUpdateCheck(false);
 })();

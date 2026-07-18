@@ -1,0 +1,19 @@
+{
+ "datasetBuild": "2026-07-18",
+ "palworldVersion": "1.0",
+ "counts": {
+  "pals": 299,
+  "withImage": 137,
+  "withElement": 205,
+  "withBreeding": 137
+ },
+ "sources": {
+  "palcalc": {
+   "url": "https://raw.githubusercontent.com/tylercamp/palcalc/master/PalCalc.Model/db.json",
+   "version": "v26"
+  },
+  "blaynem": {
+   "url": "https://raw.githubusercontent.com/blaynem/paldex/main/data-provider/baked-data/en/pals.json"
+  }
+ }
+}

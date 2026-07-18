@@ -12,8 +12,8 @@ sans compte ni serveur : ta progression est sauvegardée **localement dans ton n
 - **🏠 Accueil** — tableau de bord : anneaux de progression (Pals, boss, technologies,
   objectifs), compteurs de collectibles (effigies de Lifmunk, points de voyage rapide,
   donjons) et prochains objectifs.
-- **📕 Paldex** — les 137 Pals (base 1.0). Marque ceux obtenus, favoris, filtres par
-  élément / aptitude / obtenus-manquants, recherche, barre de progression.
+- **📕 Paldex** — les **299 Pals du Paldeck 1.0** (numérotation du jeu, noms FR). Marque
+  ceux obtenus, favoris, filtres par élément / aptitude / obtenus-manquants, recherche.
 - **🥚 Breeding** — `A + B = ?` et *« Comment obtenir ce Pal ? »* (toutes les combinaisons
   de parents). Chaque fiche Pal liste aussi son breeding.
 - **✨ Passifs** — builds méta par rôle (Combat, Tank, Monture, Travail) + catalogue des
@@ -26,6 +26,9 @@ sans compte ni serveur : ta progression est sauvegardée **localement dans ton n
   ateliers/tech clés, Pals utiles, boss de tour.
 - **🔧 Fabrications** — arbre technologique : ordre de déblocage conseillé, cochable.
 - **🎯 Objectifs** — ta to-do Palworld personnelle (ajout / catégories / suggestions).
+- **🗃️ Données & mises à jour** — au lancement, l'outil **vérifie automatiquement** s'il
+  existe une nouvelle version des données de jeu (via PalCalc) et affiche l'état
+  (à jour / mise à jour dispo / hors ligne). Bouton de vérification manuelle sur le tableau de bord.
 
 ## Lancer
 
@@ -47,10 +50,33 @@ python3 -m http.server 8000
 
 ## Données & crédits
 
-- Données Pals (stats, types, aptitudes, breeding) : [`mlg404/palworld-paldex-api`](https://github.com/mlg404/palworld-paldex-api).
-- Images redimensionnées en vignettes locales.
-- Les guides (passifs, équipement, tech tree, boss) sont **indicatifs** et basés sur
-  Palworld 1.0 — facilement modifiables dans `js/content.js`.
+- **Roster / breeding / stats / noms FR** : [`tylercamp/PalCalc`](https://github.com/tylercamp/palcalc)
+  (extrait des fichiers du jeu, Palworld 1.0 — 299 Pals).
+- **Éléments / drops / compétences de partenaire** : [`blaynem/paldex`](https://github.com/blaynem/paldex).
+- **Images** : vignettes locales pour les 137 Pals disponibles ; les nouveaux Pals 1.0
+  affichent une vignette générique (élément) en attendant.
+- Les guides (passifs, équipement, tech tree, boss) sont **indicatifs** et modifiables
+  dans `js/content.js`.
+
+### Couverture des données 1.0
+
+| Élément | Couverture |
+|---|---|
+| Pals (roster, stats, aptitudes, noms FR) | **299 / 299** ✅ |
+| Éléments (types) | 205 / 299 (variantes déduites ; ~93 nouvelles espèces en attente) |
+| Images officielles | 137 / 299 (le reste : vignette générique) |
+| Breeding (recettes) | 137 / 299 (Pals d'origine ; nouveaux Pals à venir) |
+
+> Le wiki et les CDN d'images de Palworld ne sont pas accessibles depuis l'environnement de
+> build. Les éléments/images/recettes manquants se compléteront quand la source de données
+> `blaynem/paldex` passera en 1.0 — la **vérification de mise à jour au lancement** sert à
+> détecter ces nouvelles versions. Le dataset se régénère via le script `scripts/build.py`.
+
+### Régénérer / mettre à jour le dataset
+
+```bash
+python3 scripts/build.py   # re-télécharge les sources et reconstruit data/*.json + images
+```
 
 ## Structure
 
