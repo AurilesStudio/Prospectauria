@@ -6,6 +6,8 @@ import {
 import { store } from './store.js';
 import { PASSIVES, BUILDS, PROGRESSION, TECH_TREE, BOSSES, COUNTERS, recommendRole, buildFor } from './content.js';
 import { checkForUpdates, getStatus } from './update.js';
+import { cloud } from './cloud.js';
+import { config } from './config.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const view = () => $('#view');
@@ -540,6 +542,87 @@ async function runUpdateCheck(force) {
   if (btn) { btn.disabled = false; btn.textContent = '🔄 Vérifier les mises à jour'; }
 }
 
+// ---------- Compte / Cloud ----------
+let acctMode = 'signin'; // signin | signup
+
+function syncPill() {
+  const el = document.getElementById('sync-pill');
+  if (!el) return;
+  if (!config.configured) { el.style.display = 'none'; return; }
+  const u = cloud.user;
+  el.style.display = '';
+  if (!u) { el.className = 'sync-pill off'; el.textContent = '☁︎ Hors ligne'; return; }
+  const st = cloud.syncState;
+  const map = { saving: ['sync', '⟳ Sync…'], saved: ['ok', '☁︎ ' + u.email.split('@')[0]],
+                error: ['err', '⚠︎ Erreur sync'] };
+  const [cls, txt] = map[st] || ['ok', '☁︎ ' + u.email.split('@')[0]];
+  el.className = 'sync-pill ' + cls;
+  el.textContent = txt;
+}
+
+function openAccount() {
+  let body;
+  if (!config.configured) {
+    body = `<div class="acct">
+      <h3>☁️ Synchronisation cloud</h3>
+      <p class="muted small">Configure ton projet Supabase pour synchroniser ta progression et la partager (chacun son compte). Guide : <code>supabase/README.md</code>.</p>
+      <label class="fld">URL du projet<input id="cfg-url" placeholder="https://xxxx.supabase.co"></label>
+      <label class="fld">Clé anon public<input id="cfg-key" placeholder="eyJhbGciOi..."></label>
+      <button class="acct-btn primary" data-cfgsave>Enregistrer</button>
+      <p class="muted small">L'app fonctionne aussi sans cloud (sauvegarde locale).</p>
+    </div>`;
+  } else if (!cloud.user) {
+    body = `<div class="acct">
+      <h3>${acctMode === 'signup' ? 'Créer un compte' : 'Se connecter'}</h3>
+      <div class="seg"><button class="seg-btn ${acctMode === 'signin' ? 'on' : ''}" data-acctmode="signin">Connexion</button>
+        <button class="seg-btn ${acctMode === 'signup' ? 'on' : ''}" data-acctmode="signup">Inscription</button></div>
+      <label class="fld">Email<input id="acct-email" type="email" autocomplete="email"></label>
+      <label class="fld">Mot de passe<input id="acct-pass" type="password" autocomplete="current-password"></label>
+      <div id="acct-msg" class="acct-msg"></div>
+      <button class="acct-btn primary" data-acctgo>${acctMode === 'signup' ? "S'inscrire" : 'Se connecter'}</button>
+      <button class="link-btn" data-cfgreset>Changer de projet Supabase</button>
+    </div>`;
+  } else {
+    const u = cloud.user;
+    body = `<div class="acct">
+      <h3>☁️ Mon compte</h3>
+      <p>Connecté : <b>${esc(u.email)}</b></p>
+      <p class="muted small">Ta progression est synchronisée automatiquement dans le cloud.</p>
+      <button class="acct-btn" data-syncnow>🔄 Forcer la synchronisation</button>
+      <button class="acct-btn" data-signout>Se déconnecter</button>
+    </div>`;
+  }
+  showModal(body);
+}
+
+function refreshAccountUI() {
+  syncPill();
+  if (document.querySelector('.acct')) openAccount();
+}
+
+async function doAuth() {
+  const email = $('#acct-email')?.value.trim();
+  const pass = $('#acct-pass')?.value;
+  const msg = $('#acct-msg');
+  if (!email || !pass) { if (msg) msg.textContent = 'Email et mot de passe requis.'; return; }
+  if (msg) msg.textContent = '…';
+  const r = acctMode === 'signup' ? await cloud.signUp(email, pass) : await cloud.signIn(email, pass);
+  if (!r.ok) { if (msg) { msg.textContent = trAuthErr(r.error); msg.classList.add('err'); } return; }
+  if (r.needsConfirm) { if (msg) msg.textContent = 'Compte créé — confirme ton email puis connecte-toi.'; acctMode = 'signin'; return; }
+  closeModal();
+  render();
+  syncPill();
+}
+
+function trAuthErr(e) {
+  const s = (e || '').toLowerCase();
+  if (s.includes('invalid login')) return 'Email ou mot de passe incorrect.';
+  if (s.includes('already registered') || s.includes('already been registered')) return 'Un compte existe déjà avec cet email.';
+  if (s.includes('password')) return 'Mot de passe trop court (min. 6 caractères).';
+  if (s.includes('réseau') || s.includes('network')) return 'Réseau indisponible.';
+  return e || 'Erreur.';
+}
+
 // ---------- Modal plumbing ----------
 function showModal(html) {
   $('#modal-body').innerHTML = html;
@@ -619,6 +702,20 @@ function wire() {
     if (t.closest('[data-checkupdates]')) { runUpdateCheck(true); return; }
     if (t.closest('[data-ubclose]')) { const b = document.getElementById('update-banner'); if (b) b.style.display = 'none'; return; }
 
+    // Compte / cloud
+    if (t.closest('[data-account]')) { openAccount(); return; }
+    const am = t.closest('[data-acctmode]');
+    if (am) { acctMode = am.dataset.acctmode; openAccount(); return; }
+    if (t.closest('[data-acctgo]')) { doAuth(); return; }
+    if (t.closest('[data-cfgsave]')) {
+      const u = $('#cfg-url')?.value, k = $('#cfg-key')?.value;
+      if (u && k) { config.save(u, k); cloud.init().then(() => { render(); syncPill(); }); openAccount(); }
+      return;
+    }
+    if (t.closest('[data-cfgreset]')) { cloud.signOut(); config.clear(); openAccount(); syncPill(); return; }
+    if (t.closest('[data-signout]')) { cloud.signOut().then(() => { render(); syncPill(); }); closeModal(); return; }
+    if (t.closest('[data-syncnow]')) { cloud.pushNow(); return; }
+
     const goto = t.closest('[data-goto]');
     if (goto) { ui.tab = goto.dataset.goto; render(); window.scrollTo(0, 0); return; }
     if (t.closest('[data-baseowned]')) { baseOwnedOnly = !baseOwnedOnly; renderBase(); return; }
@@ -654,13 +751,14 @@ function wire() {
     if (task) { store.toggleTask(task.dataset.task); render(); }
   });
 
-  // Entrée pour ajouter un objectif
+  // Entrée pour ajouter un objectif / valider la connexion
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.id === 'obj-text' && e.target.value.trim()) {
       const cat = $('#obj-cat');
       store.addObjective(e.target.value.trim(), cat ? cat.value : 'Général');
       renderObjectifs();
     }
+    if (e.key === 'Enter' && (e.target.id === 'acct-email' || e.target.id === 'acct-pass')) doAuth();
   });
 }
 
@@ -682,8 +780,16 @@ function refreshGridOnly() {
     stats_.maxRide = Math.max(stats_.maxRide, p.stats.rideSpeed);
   }
   bA = DB.pals[0].key; bB = DB.pals[1].key; bTarget = DB.pals[DB.pals.length - 1].key;
+
+  // Cloud : pousse l'état après chaque modif locale ; réagit aux changements de compte.
+  store.setPersistHook((state) => cloud.schedulePush(state));
+  cloud.onAuthChange(() => { syncPill(); if (document.querySelector('.acct')) refreshAccountUI(); });
+
   wire();
   render();
+  syncPill();
   // Recherche de mise à jour au lancement (non bloquant)
   runUpdateCheck(false);
+  // Restaure la session cloud + tire la progression (non bloquant), puis rafraîchit.
+  if (config.configured) cloud.init().then(() => { render(); syncPill(); });
 })();

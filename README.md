@@ -29,6 +29,10 @@ sans compte ni serveur : ta progression est sauvegardée **localement dans ton n
 - **🗃️ Données & mises à jour** — au lancement, l'outil **vérifie automatiquement** s'il
   existe une nouvelle version des données de jeu (via PalCalc) et affiche l'état
   (à jour / mise à jour dispo / hors ligne). Bouton de vérification manuelle sur le tableau de bord.
+- **☁️ Synchronisation cloud (optionnelle)** — via **Supabase** : chacun son compte, sa
+  progression synchronisée dans le cloud et privée (Row Level Security). Idéal pour jouer à
+  plusieurs et retrouver son suivi sur tous ses appareils. Sans configuration, l'app reste
+  100 % locale. Mise en place : [`supabase/README.md`](./supabase/README.md).
 
 ## Lancer
 

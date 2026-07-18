@@ -12,6 +12,7 @@ const DEFAULT = {
 };
 
 let state = load();
+let onPersist = null; // hook cloud (appelé après chaque modif locale de l'utilisateur)
 
 function load() {
   try {
@@ -23,12 +24,13 @@ function load() {
   }
 }
 
-function persist() {
+function persist(silent) {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch (e) {
     console.warn('Sauvegarde impossible', e);
   }
+  if (!silent && onPersist) { try { onPersist(state); } catch {} }
 }
 
 export const store = {
@@ -102,5 +104,14 @@ export const store = {
   reset() {
     state = structuredClone(DEFAULT);
     persist();
+  },
+
+  // --- Intégration cloud ---
+  snapshot: () => structuredClone(state),
+  setPersistHook(fn) { onPersist = fn; },
+  // Remplace l'état local par celui du cloud (sans re-déclencher la synchro).
+  hydrate(obj) {
+    state = { ...structuredClone(DEFAULT), ...(obj || {}) };
+    persist(true);
   },
 };
