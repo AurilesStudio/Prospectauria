@@ -6,7 +6,9 @@ const DEFAULT = {
   owned: {},      // { palKey: true }
   favorites: {},  // { palKey: true }
   notes: {},      // { palKey: "texte" }
-  tasks: {},      // { taskId: true }  (progression joueur / fabrications)
+  tasks: {},      // { taskId: true }  (progression joueur / fabrications / boss)
+  counters: {},   // { effigies: n, ... }
+  objectives: [], // [{ id, text, done, cat }]
 };
 
 let state = load();
@@ -69,6 +71,27 @@ export const store = {
   },
 
   ownedCount: () => Object.keys(state.owned).length,
+  tasksDoneCount: (prefix) => Object.keys(state.tasks).filter((k) => k.startsWith(prefix)).length,
+
+  counter: (id) => state.counters[id] || 0,
+  setCounter(id, v) {
+    state.counters[id] = Math.max(0, Number(v) || 0);
+    persist();
+  },
+
+  objectives: () => state.objectives,
+  addObjective(text, cat) {
+    state.objectives.push({ id: 'o' + Date.now() + Math.floor(Math.random() * 1e4), text, cat: cat || 'Général', done: false });
+    persist();
+  },
+  toggleObjective(id) {
+    const o = state.objectives.find((x) => x.id === id);
+    if (o) { o.done = !o.done; persist(); }
+  },
+  removeObjective(id) {
+    state.objectives = state.objectives.filter((x) => x.id !== id);
+    persist();
+  },
 
   exportJSON: () => JSON.stringify(state, null, 2),
   importJSON(json) {

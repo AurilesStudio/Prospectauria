@@ -4,14 +4,14 @@ import {
   EL_FR, EL_COLOR, WORK_FR, GENUS_FR, SIZE_FR, titleCase,
 } from './data.js';
 import { store } from './store.js';
-import { PASSIVES, BUILDS, PROGRESSION, TECH_TREE, recommendRole, buildFor } from './content.js';
+import { PASSIVES, BUILDS, PROGRESSION, TECH_TREE, BOSSES, COUNTERS, recommendRole, buildFor } from './content.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const view = () => $('#view');
 
 const stats_ = { maxHp: 1, maxAtk: 1, maxDef: 1, maxRide: 1 };
 const ui = {
-  tab: 'paldex',
+  tab: 'accueil',
   search: '',
   fType: null,
   fWork: null,
@@ -338,6 +338,143 @@ function renderFabrications() {
     <div class="tech-list">${rows}</div>`;
 }
 
+// ---------- Accueil / Tableau de bord ----------
+function ringCard(label, done, total, tab, color) {
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  return `<button class="stat-card" data-goto="${tab}">
+    <div class="ring" style="--pct:${pct};--rc:${color}"><span>${pct}%</span></div>
+    <div class="sc-label">${label}</div><div class="sc-sub muted">${done} / ${total}</div>
+  </button>`;
+}
+
+function renderAccueil() {
+  const pals = store.ownedCount();
+  const total = DB.pals.length;
+  const towersDone = PROGRESSION.filter((b) => store.isTaskDone('boss-' + b.id)).length;
+  const alphaDone = BOSSES.filter((b) => store.isTaskDone('alpha-' + b.id)).length;
+  const bossDone = towersDone + alphaDone;
+  const bossTotal = PROGRESSION.length + BOSSES.length;
+  const techDone = TECH_TREE.filter((t) => store.isTaskDone('tech-' + t.id)).length;
+  const obj = store.objectives();
+  const objDone = obj.filter((o) => o.done).length;
+  const favs = Object.keys(store.get().favorites).length;
+
+  const counters = COUNTERS.map((c) => {
+    const v = store.counter(c.id);
+    const pct = Math.round((Math.min(v, c.max) / c.max) * 100);
+    return `<div class="counter">
+      <div class="cnt-top"><span>${c.icon} ${c.label}</span>
+        <span class="cnt-val"><button class="cbtn" data-cinc="${c.id}:-1">−</button>
+          <input class="cinput" type="number" min="0" max="${c.max}" value="${v}" data-counter="${c.id}">
+          <span class="muted">/ ${c.max}</span>
+          <button class="cbtn" data-cinc="${c.id}:1">+</button></span></div>
+      <div class="bar small"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <div class="muted small">${c.help}</div></div>`;
+  }).join('');
+
+  const todo = obj.filter((o) => !o.done).slice(0, 6);
+  const todoHtml = todo.length
+    ? todo.map((o) => `<li><label><input type="checkbox" data-obj="${o.id}"> ${esc(o.text)} <span class="muted small">· ${esc(o.cat)}</span></label></li>`).join('')
+    : '<li class="muted">Aucun objectif en cours — ajoute-en dans l’onglet 🎯 Objectifs.</li>';
+
+  view().innerHTML = `
+    <div class="intro"><h2>🏠 Tableau de bord</h2>
+      <p class="muted">Vue d’ensemble de ta progression. Clique une carte pour aller au détail.</p></div>
+    <div class="stat-cards">
+      ${ringCard('📕 Pals capturés', pals, total, 'paldex', '#4dd0a7')}
+      ${ringCard('👑 Boss vaincus', bossDone, bossTotal, 'boss', '#e9c53b')}
+      ${ringCard('🔧 Technologies', techDone, TECH_TREE.length, 'fabrications', '#7b6cf6')}
+      ${ringCard('🎯 Objectifs', objDone, obj.length || 0, 'objectifs', '#e8663a')}
+    </div>
+    <div class="dash-grid">
+      <div class="dash-box"><h3>🗿 Collectibles</h3>${counters}</div>
+      <div class="dash-box"><h3>🎯 Prochains objectifs</h3><ul class="todo">${todoHtml}</ul>
+        <button class="link-btn" data-goto="objectifs">Gérer mes objectifs →</button></div>
+    </div>`;
+}
+
+// ---------- Base : meilleurs Pals par tâche ----------
+let baseOwnedOnly = false;
+function renderBase() {
+  const works = Object.keys(WORK_FR);
+  const sections = works.map((w) => {
+    let list = DB.pals
+      .filter((p) => p.suitability.some((s) => s.type === w))
+      .map((p) => ({ p, lvl: p.suitability.find((s) => s.type === w).level }))
+      .sort((a, b) => b.lvl - a.lvl || a.p.id - b.p.id);
+    if (baseOwnedOnly) list = list.filter((x) => store.isOwned(x.p.key));
+    list = list.slice(0, 10);
+    const rows = list.map(({ p, lvl }) => `
+      <div class="wp-row ${store.isOwned(p.key) ? 'own' : ''}" data-pal="${p.key}">
+        <img src="${palImg(p.key)}" alt=""><span class="wp-name">${esc(p.name)}</span>
+        <span class="wp-lvl">Niv. ${lvl}</span>${store.isOwned(p.key) ? '<span class="wp-check">✓</span>' : ''}</div>`).join('')
+      || '<div class="muted small">Aucun de tes Pals pour cette tâche.</div>';
+    return `<div class="wp-card"><div class="wp-head"><img src="${workImg(w)}" alt="">${WORK_FR[w]}</div>${rows}</div>`;
+  }).join('');
+  view().innerHTML = `
+    <div class="intro"><h2>⚒️ Base — meilleurs Pals par tâche</h2>
+      <p class="muted">Qui affecter à chaque poste de travail (trié par niveau d’aptitude).</p>
+      <button class="seg-btn ${baseOwnedOnly ? 'on' : ''}" data-baseowned>Seulement mes Pals obtenus</button></div>
+    <div class="wp-grid">${sections}</div>`;
+}
+
+// ---------- Boss ----------
+function bossRow(b, taskId, key, meta) {
+  const done = store.isTaskDone(taskId);
+  const img = key && DB.byKey.has(key) ? `<img class="brimg" src="${palImg(key)}" alt="" data-pal="${key}">` : '<span class="brimg ph">👑</span>';
+  return `<label class="boss-row ${done ? 'done' : ''} ${b.tier === 'legend' ? 'legend' : ''}">
+    <input type="checkbox" data-task="${taskId}" ${done ? 'checked' : ''}>
+    ${img}<span class="br-name">${esc(b.name)}</span><span class="br-meta muted small">${esc(meta)}</span></label>`;
+}
+function renderBoss() {
+  const towers = PROGRESSION.map((b) => bossRow({ name: b.boss.split(' — ')[1] || b.boss, tier: 'tower' }, 'boss-' + b.id, null, '')).join('');
+  const alphas = BOSSES.map((b) => bossRow(b, 'alpha-' + b.id, b.key, `Niv. ~${b.lvl} · ${b.region}`)).join('');
+  const tDone = PROGRESSION.filter((b) => store.isTaskDone('boss-' + b.id)).length;
+  const aDone = BOSSES.filter((b) => store.isTaskDone('alpha-' + b.id)).length;
+  const tot = PROGRESSION.length + BOSSES.length; const done = tDone + aDone;
+  view().innerHTML = `
+    <div class="intro"><h2>👑 Boss & défis</h2>
+      <p class="muted">Tours (jalons de progression) et boss de terrain / légendaires. Niveaux indicatifs.</p>
+      <div class="bar small"><div class="bar-fill" style="width:${Math.round(done / tot * 100)}%"></div></div>
+      <div class="muted small">${done} / ${tot} vaincus</div></div>
+    <h3 class="mt">🗼 Tours (bosses de tour)</h3><div class="boss-list">${towers}</div>
+    <h3 class="mt">⚔️ Boss de terrain & légendaires</h3><div class="boss-list">${alphas}</div>`;
+}
+
+// ---------- Objectifs personnels ----------
+const OBJ_CATS = ['Général', 'Pals', 'Breeding', 'Base', 'Boss', 'Exploration', 'Équipement'];
+const OBJ_SUGGEST = [
+  'Compléter le Paldex à 100 %',
+  'Obtenir un Pal de combat avec 4 passifs S',
+  'Débloquer toutes les tours',
+  'Monter une base 100 % automatisée',
+  'Capturer les 4 légendaires',
+];
+function renderObjectifs() {
+  const obj = store.objectives();
+  const done = obj.filter((o) => o.done).length;
+  const byCat = {};
+  for (const o of obj) (byCat[o.cat] ||= []).push(o);
+  const cats = Object.keys(byCat).sort();
+  const list = cats.map((c) => `
+    <div class="obj-cat"><h4>${esc(c)}</h4>
+      ${byCat[c].map((o) => `<label class="obj-row ${o.done ? 'done' : ''}">
+        <input type="checkbox" data-obj="${o.id}" ${o.done ? 'checked' : ''}>
+        <span>${esc(o.text)}</span>
+        <button class="obj-del" data-objdel="${o.id}" title="Supprimer">✕</button></label>`).join('')}
+    </div>`).join('') || '<p class="muted">Aucun objectif pour l’instant. Ajoute le tien ci-dessus ou choisis une suggestion.</p>';
+
+  view().innerHTML = `
+    <div class="intro"><h2>🎯 Mes objectifs</h2>
+      <p class="muted">Ta to-do Palworld personnelle. ${obj.length ? `${done}/${obj.length} atteints.` : ''}</p></div>
+    <div class="obj-add">
+      <input id="obj-text" class="search" placeholder="Nouvel objectif…">
+      <select id="obj-cat" class="pal-select">${OBJ_CATS.map((c) => `<option>${c}</option>`).join('')}</select>
+      <button id="obj-add-btn" class="seg-btn on">+ Ajouter</button></div>
+    <div class="suggest">${OBJ_SUGGEST.map((s) => `<button class="chip" data-objsuggest="${esc(s)}">+ ${esc(s)}</button>`).join('')}</div>
+    <div class="obj-list">${list}</div>`;
+}
+
 // ---------- Modal plumbing ----------
 function showModal(html) {
   $('#modal-body').innerHTML = html;
@@ -350,10 +487,14 @@ function closeModal() {
 }
 
 // ---------- Router ----------
+const TABS = {
+  accueil: renderAccueil, paldex: renderPaldex, breeding: renderBreeding, passifs: renderPassifs,
+  base: renderBase, boss: renderBoss, joueur: renderJoueur, fabrications: renderFabrications,
+  objectifs: renderObjectifs,
+};
 function render() {
   document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
-  ({ paldex: renderPaldex, breeding: renderBreeding, passifs: renderPassifs,
-     joueur: renderJoueur, fabrications: renderFabrications }[ui.tab])();
+  (TABS[ui.tab] || renderAccueil)();
 }
 
 // ---------- Events ----------
@@ -406,6 +547,25 @@ function wire() {
 
     const bmode = t.closest('[data-bmode]');
     if (bmode) { ui.breedMode = bmode.dataset.bmode; renderBreeding(); return; }
+
+    const goto = t.closest('[data-goto]');
+    if (goto) { ui.tab = goto.dataset.goto; render(); window.scrollTo(0, 0); return; }
+    if (t.closest('[data-baseowned]')) { baseOwnedOnly = !baseOwnedOnly; renderBase(); return; }
+
+    const cinc = t.closest('[data-cinc]');
+    if (cinc) { const [id, d] = cinc.dataset.cinc.split(':'); store.setCounter(id, store.counter(id) + Number(d)); renderAccueil(); return; }
+
+    const objChk = t.closest('[data-obj]');
+    if (objChk && objChk.tagName === 'INPUT') { store.toggleObjective(objChk.dataset.obj); render(); return; }
+    const objdel = t.closest('[data-objdel]');
+    if (objdel) { store.removeObjective(objdel.dataset.objdel); renderObjectifs(); return; }
+    const sugg = t.closest('[data-objsuggest]');
+    if (sugg) { store.addObjective(sugg.dataset.objsuggest, 'Général'); renderObjectifs(); return; }
+    if (t.id === 'obj-add-btn') {
+      const inp = $('#obj-text'); const cat = $('#obj-cat');
+      if (inp && inp.value.trim()) { store.addObjective(inp.value.trim(), cat ? cat.value : 'Général'); renderObjectifs(); }
+      return;
+    }
   });
 
   // Inputs délégués
@@ -418,10 +578,18 @@ function wire() {
     const t = e.target;
     if (t.id === 'bA' || t.id === 'bB') computeBreedResult();
     if (t.id === 'bTarget') computeBreedTarget();
+    if (t.dataset.counter != null) { store.setCounter(t.dataset.counter, t.value); renderAccueil(); return; }
     const task = t.closest('[data-task]');
-    if (task) { store.toggleTask(task.dataset.task);
-      const lab = task.closest('label'); if (lab) lab.classList.toggle('done', task.checked);
-      if (ui.tab === 'fabrications') renderFabrications(); }
+    if (task) { store.toggleTask(task.dataset.task); render(); }
+  });
+
+  // Entrée pour ajouter un objectif
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.id === 'obj-text' && e.target.value.trim()) {
+      const cat = $('#obj-cat');
+      store.addObjective(e.target.value.trim(), cat ? cat.value : 'Général');
+      renderObjectifs();
+    }
   });
 }
 

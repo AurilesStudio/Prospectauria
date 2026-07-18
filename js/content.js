@@ -123,6 +123,42 @@ export const PROGRESSION = [
   },
 ];
 
+// ---------- Boss de terrain / Alphas / Légendaires ----------
+// Niveaux et régions indicatifs (Palworld 1.0). key = clé Paldex si capturable.
+export const BOSSES = [
+  { id: 'chillet', name: 'Chillet', key: '055', lvl: 12, region: 'Bosquets de bambous (est)', tier: 'alpha' },
+  { id: 'penking', name: 'Penking', key: '011', lvl: 19, region: 'Royaume scellé des Ailés (île nord)', tier: 'alpha' },
+  { id: 'lovander', name: 'Lovander', key: '069', lvl: 20, region: 'Forêt centrale', tier: 'alpha' },
+  { id: 'robinquill', name: 'Robinquill', key: '048', lvl: 22, region: 'Forêt', tier: 'alpha' },
+  { id: 'grintale', name: 'Grintale', key: '052', lvl: 25, region: 'Prairies', tier: 'alpha' },
+  { id: 'mammorest', name: 'Mammorest', key: '090', lvl: 25, region: 'Forêt centrale (pont)', tier: 'alpha' },
+  { id: 'bushi', name: 'Bushi', key: '072', lvl: 29, region: 'Région rocheuse', tier: 'alpha' },
+  { id: 'elphidran', name: 'Elphidran', key: '080', lvl: 30, region: 'Est de la carte', tier: 'alpha' },
+  { id: 'broncherry', name: 'Broncherry', key: '086', lvl: 30, region: 'Forêt sud', tier: 'alpha' },
+  { id: 'warsect', name: 'Warsect', key: '092', lvl: 32, region: 'Marais / forêt', tier: 'alpha' },
+  { id: 'beakon', name: 'Beakon', key: '073', lvl: 33, region: 'Plateau électrique', tier: 'alpha' },
+  { id: 'sibelyx', name: 'Sibelyx', key: '079', lvl: 35, region: 'Nord', tier: 'alpha' },
+  { id: 'cryolinx', name: 'Cryolinx', key: '083', lvl: 38, region: 'Montagnes enneigées', tier: 'alpha' },
+  { id: 'menasting', name: 'Menasting', key: '099', lvl: 40, region: 'Désert', tier: 'alpha' },
+  { id: 'jormuntide', name: 'Jormuntide', key: '101', lvl: 41, region: 'Lac / île eau', tier: 'alpha' },
+  { id: 'suzaku', name: 'Suzaku', key: '102', lvl: 42, region: 'Désert (jour)', tier: 'alpha' },
+  { id: 'blazamut', name: 'Blazamut', key: '096', lvl: 45, region: 'Îles volcaniques', tier: 'alpha' },
+  { id: 'jormignis', name: 'Jormuntide Ignis', key: '101B', lvl: 45, region: 'Volcan', tier: 'alpha' },
+  { id: 'faleris', name: 'Faleris', key: '105', lvl: 45, region: 'Désert (feu)', tier: 'alpha' },
+  { id: 'anubis', name: 'Anubis', key: '100', lvl: 47, region: 'Dunes du Crépuscule (désert)', tier: 'alpha' },
+  { id: 'paladius', name: 'Paladius', key: '108', lvl: 50, region: 'Dunes du Crépuscule (jour, world boss)', tier: 'legend' },
+  { id: 'necromus', name: 'Necromus', key: '109', lvl: 50, region: 'Dunes du Crépuscule (nuit, world boss)', tier: 'legend' },
+  { id: 'frostallion', name: 'Frostallion', key: '110', lvl: 50, region: 'Sanctuaire enneigé (île No.3)', tier: 'legend' },
+  { id: 'jetragon', name: 'Jetragon', key: '111', lvl: 50, region: 'Sommet volcanique (île No.3)', tier: 'legend' },
+];
+
+// ---------- Compteurs de collectibles (dashboard) ----------
+export const COUNTERS = [
+  { id: 'effigies', label: 'Effigies de Lifmunk', max: 137, icon: '🗿', help: 'Augmentent le taux de capture. Éparpillées sur toute la carte.' },
+  { id: 'fasttravel', label: 'Points de voyage rapide', max: 50, icon: '🗺️', help: 'Statues / tours d’observation débloquées.' },
+  { id: 'dungeons', label: 'Donjons explorés', max: 60, icon: '🕳️', help: 'Grottes/donjons nettoyés (coffres, alphas de donjon).' },
+];
+
 // ---------- Guide de fabrication / arbre technologique (essentiels) ----------
 export const TECH_TREE = [
   { id: 't1', lvl: 2, name: 'Établi & Coffre', why: 'Débloque tout l’artisanat de base. Priorité absolue.' },
