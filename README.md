@@ -75,8 +75,12 @@ python3 -m http.server 8000
 ### Régénérer / mettre à jour le dataset
 
 ```bash
-python3 scripts/build.py   # re-télécharge les sources et reconstruit data/*.json + images
+python3 scripts/build.py            # reconstruit data/*.json (garde les images)
+python3 scripts/build.py --images   # + retélécharge/redimensionne les images (nécessite Pillow)
 ```
+
+Un workflow GitHub Actions (`.github/workflows/update-data.yml`) relance ce script
+**chaque semaine** (et à la demande) et commit automatiquement toute évolution des données.
 
 ## Structure
 

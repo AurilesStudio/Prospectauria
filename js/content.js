@@ -154,9 +154,9 @@ export const BOSSES = [
 
 // ---------- Compteurs de collectibles (dashboard) ----------
 export const COUNTERS = [
-  { id: 'effigies', label: 'Effigies de Lifmunk', max: 137, icon: '🗿', help: 'Augmentent le taux de capture. Éparpillées sur toute la carte.' },
-  { id: 'fasttravel', label: 'Points de voyage rapide', max: 50, icon: '🗺️', help: 'Statues / tours d’observation débloquées.' },
-  { id: 'dungeons', label: 'Donjons explorés', max: 60, icon: '🕳️', help: 'Grottes/donjons nettoyés (coffres, alphas de donjon).' },
+  { id: 'effigies', label: 'Effigies de Lifmunk', max: 589, icon: '🗿', help: 'Augmentent la puissance de capture. ~589 sur toute la carte (Palpagos + Sakurajima + Feybreak) — 353 suffisent pour maxer (niv. 14).' },
+  { id: 'dungeons', label: 'Donjons explorés', max: 155, icon: '🕳️', help: '155 donjons en 1.0 (coffres garantis : remède + livre de tech dans la salle finale).' },
+  { id: 'fasttravel', label: 'Points de voyage rapide', max: 60, icon: '🗺️', help: 'Statues de puissance / tours débloquées (valeur indicative).' },
 ];
 
 // ---------- Guide de fabrication / arbre technologique (essentiels) ----------

@@ -1,0 +1,48 @@
+name: Mise à jour des données Palworld
+
+# Régénère data/*.json (+ images) depuis les sources amont (PalCalc, blaynem, mlg404)
+# et commit automatiquement s'il y a du nouveau. Utile quand les sources passent
+# à une nouvelle version du jeu.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # chaque lundi à 06:00 UTC
+  workflow_dispatch:       # + déclenchement manuel depuis l'onglet Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Dépendances
+        run: pip install Pillow
+
+      - name: Régénérer le dataset
+        run: python3 scripts/build.py --images
+
+      - name: Commit si changement
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "chore(data): mise à jour automatique du dataset Palworld"
+            git push
+            echo "Dataset mis à jour."
+          else
+            echo "Aucun changement — dataset déjà à jour."
+          fi
