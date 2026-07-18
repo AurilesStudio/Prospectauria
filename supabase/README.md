@@ -12,23 +12,36 @@ l'app fonctionne en local (localStorage) comme avant.
 1. **Crée un projet** sur [supabase.com](https://supabase.com) (plan gratuit).
 2. **Schéma** : ouvre *SQL Editor*, colle le contenu de [`schema.sql`](./schema.sql), exécute (*Run*).
 3. **Auth email** : *Authentication → Sign In / Providers → Email* → activé.
-   - Recommandé pour 2 joueurs : *Authentication → Providers → Email* → **désactive « Confirm email »**
-     (inscription immédiate, sans email de confirmation).
-4. **Clés** : *Project Settings → API* → copie **Project URL** et la clé **anon public**.
-   > La clé `anon` est faite pour être publique : la sécurité vient des règles RLS (étape 2).
-5. **Branche l'app**, au choix :
+   - *Authentication → Providers → Email* → **désactive « Confirm email »** (connexion immédiate).
+4. **App privée — n'autoriser QUE les personnes choisies** :
+   - *Authentication → Sign In / Providers* (ou *Settings*) → **désactive « Allow new users to sign up »**.
+     → Plus personne ne peut créer de compte tout seul, même avec le lien.
+   - Crée toi-même les comptes autorisés : *Authentication → Users → Add user* →
+     saisis l'email + un mot de passe (coche « Auto Confirm User »). Répète pour ton beau-frère
+     (ou toute personne que tu choisis). Tu peux en ajouter/supprimer à tout moment.
+5. **Clés** : *Project Settings → API* → copie **Project URL** et la clé **anon public**.
+   > La clé `anon` est faite pour être publique : la sécurité vient des règles RLS (étape 2)
+   > et de l'inscription désactivée (étape 4).
+6. **Branche l'app**, au choix :
    - **Déploiement partagé** (recommandé) : colle URL + clé anon dans
      [`js/config.js`](../js/config.js), commit, déploie (GitHub Pages…), partage l'URL.
-     Ton beau-frère n'aura plus qu'à créer son compte.
+     Ton beau-frère se connecte avec le compte que tu lui as créé (étape 4).
    - **Test rapide** : dans l'app → **⚙️ Compte → Configurer**, colle URL + clé
      (mémorisées dans ton navigateur).
 
+## Accès privé (résumé)
+
+Une fois configurée, l'app est **verrouillée derrière la connexion** (`AUTH.requireLogin`
+dans `js/config.js`) : un visiteur sans compte voit un écran de connexion et rien d'autre.
+Comme l'auto-inscription est désactivée côté Supabase **et** dans l'app (`AUTH.allowSignup:false`),
+**seuls les comptes que tu crées** peuvent se connecter. Pour donner accès à quelqu'un :
+*Authentication → Users → Add user*. Pour retirer l'accès : supprime son utilisateur.
+
 ## Utilisation
 
-- **⚙️ Compte** dans la barre du haut → *Créer un compte* / *Se connecter*.
-- Une fois connecté, chaque changement est sauvegardé dans le cloud (indicateur de synchro).
-- À la première connexion, ta progression locale existante est **envoyée** dans le cloud
-  (rien n'est perdu). Sur un autre appareil, connecte-toi et tout est retrouvé.
+- Ouvre l'app → écran de connexion → email + mot de passe (fournis par toi).
+- Une fois connecté, chaque changement est sauvegardé dans le cloud (indicateur de synchro),
+  et retrouvé sur tous tes appareils.
 
 ## Données stockées
 

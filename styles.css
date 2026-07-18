@@ -307,6 +307,16 @@ textarea{width:100%;min-height:70px;background:var(--card);border:1px solid var(
 .data-box .upd{color:var(--gold);font-weight:700}
 .data-box .tool-btn{margin-top:10px}
 
+/* Écran de verrouillage (accès privé) */
+body.gated{overflow:hidden}
+.auth-gate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:radial-gradient(1200px 600px at 50% -10%,rgba(123,108,246,.18),transparent),var(--bg)}
+.gate-card{background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:28px;
+  width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.gate-logo{font-size:1.2rem;font-weight:700;margin-bottom:14px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.gate-card h2{margin:0 0 6px}
+
 /* Cloud / compte */
 .sync-pill{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:8px;
   font-size:.78rem;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--muted)}

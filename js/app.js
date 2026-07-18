@@ -7,7 +7,7 @@ import { store } from './store.js';
 import { PASSIVES, BUILDS, PROGRESSION, TECH_TREE, BOSSES, COUNTERS, recommendRole, buildFor } from './content.js';
 import { checkForUpdates, getStatus } from './update.js';
 import { cloud } from './cloud.js';
-import { config } from './config.js';
+import { config, AUTH } from './config.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const view = () => $('#view');
@@ -542,6 +542,28 @@ async function runUpdateCheck(force) {
   if (btn) { btn.disabled = false; btn.textContent = '🔄 Vérifier les mises à jour'; }
 }
 
+// ---------- Verrouillage par connexion (app privée) ----------
+function gateActive() {
+  return config.configured && AUTH.requireLogin && !cloud.user;
+}
+function renderAuthGate() {
+  const g = document.getElementById('auth-gate');
+  if (!g) return;
+  if (!gateActive()) { g.style.display = 'none'; document.body.classList.remove('gated'); return; }
+  g.innerHTML = `<div class="gate-card">
+    <div class="gate-logo">🥚 Palworld Tracker</div>
+    <h2>Accès privé</h2>
+    <p class="muted small">Connecte-toi pour accéder à ton suivi. ${AUTH.allowSignup ? '' : 'Les comptes sont créés par l’administrateur.'}</p>
+    <label class="fld">Email<input id="acct-email" type="email" autocomplete="email"></label>
+    <label class="fld">Mot de passe<input id="acct-pass" type="password" autocomplete="current-password"></label>
+    <div id="acct-msg" class="acct-msg"></div>
+    <button class="acct-btn primary" data-acctgo>Se connecter</button>
+    ${AUTH.allowSignup ? '<button class="link-btn" data-acctmode="signup" data-openacct>Créer un compte</button>' : ''}
+  </div>`;
+  g.style.display = '';
+  document.body.classList.add('gated');
+}
+
 // ---------- Compte / Cloud ----------
 let acctMode = 'signin'; // signin | signup
 
@@ -572,14 +594,16 @@ function openAccount() {
       <p class="muted small">L'app fonctionne aussi sans cloud (sauvegarde locale).</p>
     </div>`;
   } else if (!cloud.user) {
+    const signup = AUTH.allowSignup;
     body = `<div class="acct">
-      <h3>${acctMode === 'signup' ? 'Créer un compte' : 'Se connecter'}</h3>
-      <div class="seg"><button class="seg-btn ${acctMode === 'signin' ? 'on' : ''}" data-acctmode="signin">Connexion</button>
-        <button class="seg-btn ${acctMode === 'signup' ? 'on' : ''}" data-acctmode="signup">Inscription</button></div>
+      <h3>${signup && acctMode === 'signup' ? 'Créer un compte' : 'Se connecter'}</h3>
+      ${signup ? `<div class="seg"><button class="seg-btn ${acctMode === 'signin' ? 'on' : ''}" data-acctmode="signin">Connexion</button>
+        <button class="seg-btn ${acctMode === 'signup' ? 'on' : ''}" data-acctmode="signup">Inscription</button></div>`
+        : '<p class="muted small">Comptes créés par l’administrateur (accès privé).</p>'}
       <label class="fld">Email<input id="acct-email" type="email" autocomplete="email"></label>
       <label class="fld">Mot de passe<input id="acct-pass" type="password" autocomplete="current-password"></label>
       <div id="acct-msg" class="acct-msg"></div>
-      <button class="acct-btn primary" data-acctgo>${acctMode === 'signup' ? "S'inscrire" : 'Se connecter'}</button>
+      <button class="acct-btn primary" data-acctgo>${signup && acctMode === 'signup' ? "S'inscrire" : 'Se connecter'}</button>
       <button class="link-btn" data-cfgreset>Changer de projet Supabase</button>
     </div>`;
   } else {
@@ -606,10 +630,12 @@ async function doAuth() {
   const msg = $('#acct-msg');
   if (!email || !pass) { if (msg) msg.textContent = 'Email et mot de passe requis.'; return; }
   if (msg) msg.textContent = '…';
-  const r = acctMode === 'signup' ? await cloud.signUp(email, pass) : await cloud.signIn(email, pass);
+  const doSignup = acctMode === 'signup' && AUTH.allowSignup;
+  const r = doSignup ? await cloud.signUp(email, pass) : await cloud.signIn(email, pass);
   if (!r.ok) { if (msg) { msg.textContent = trAuthErr(r.error); msg.classList.add('err'); } return; }
   if (r.needsConfirm) { if (msg) msg.textContent = 'Compte créé — confirme ton email puis connecte-toi.'; acctMode = 'signin'; return; }
   closeModal();
+  renderAuthGate();
   render();
   syncPill();
 }
@@ -709,7 +735,13 @@ function wire() {
     if (t.closest('[data-acctgo]')) { doAuth(); return; }
     if (t.closest('[data-cfgsave]')) {
       const u = $('#cfg-url')?.value, k = $('#cfg-key')?.value;
-      if (u && k) { config.save(u, k); cloud.init().then(() => { render(); syncPill(); }); openAccount(); }
+      if (u && k) {
+        config.save(u, k);
+        closeModal();
+        renderAuthGate();
+        cloud.init().then(() => { render(); syncPill(); renderAuthGate(); });
+        if (!gateActive()) openAccount();
+      }
       return;
     }
     if (t.closest('[data-cfgreset]')) { cloud.signOut(); config.clear(); openAccount(); syncPill(); return; }
@@ -783,13 +815,14 @@ function refreshGridOnly() {
 
   // Cloud : pousse l'état après chaque modif locale ; réagit aux changements de compte.
   store.setPersistHook((state) => cloud.schedulePush(state));
-  cloud.onAuthChange(() => { syncPill(); if (document.querySelector('.acct')) refreshAccountUI(); });
+  cloud.onAuthChange(() => { syncPill(); renderAuthGate(); if (document.querySelector('.acct')) refreshAccountUI(); });
 
   wire();
   render();
   syncPill();
+  renderAuthGate();
   // Recherche de mise à jour au lancement (non bloquant)
   runUpdateCheck(false);
   // Restaure la session cloud + tire la progression (non bloquant), puis rafraîchit.
-  if (config.configured) cloud.init().then(() => { render(); syncPill(); });
+  if (config.configured) cloud.init().then(() => { render(); syncPill(); renderAuthGate(); });
 })();
