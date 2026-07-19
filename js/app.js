@@ -412,8 +412,38 @@ function renderAccueil() {
       <div class="dash-box"><h3>🗿 Collectibles</h3>${counters}</div>
       <div class="dash-box"><h3>🎯 Prochains objectifs</h3><ul class="todo">${todoHtml}</ul>
         <button class="link-btn" data-goto="objectifs">Gérer mes objectifs →</button></div>
+      ${backupBox()}
     </div>
     ${dataBox()}`;
+}
+
+// --- Sauvegarde locale ---
+const LB_KEY = 'palworld-tracker.lastBackup';
+function lastBackup() { return Number(localStorage.getItem(LB_KEY)) || 0; }
+
+function doExport() {
+  const d = new Date();
+  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const blob = new Blob([store.exportJSON()], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `palworld-tracker-${stamp}.json`;
+  a.click();
+  try { localStorage.setItem(LB_KEY, String(Date.now())); } catch {}
+  if (ui.tab === 'accueil') renderAccueil();
+}
+
+function backupBox() {
+  const lb = lastBackup();
+  const when = lb ? new Date(lb).toLocaleDateString('fr-FR') : 'jamais';
+  const stale = store.ownedCount() > 0 && (!lb || (Date.now() - lb) > 14 * 864e5);
+  return `<div class="dash-box"><h3>💾 Sauvegarde locale</h3>
+    <p class="muted small">Ta progression est enregistrée dans ce navigateur. Exporte un fichier de temps en temps pour ne rien risquer (vidage du navigateur, changement d'appareil…).</p>
+    <div class="muted small">Dernière sauvegarde : ${when}${stale ? ' <span class="upd">— pense à sauvegarder</span>' : ''}</div>
+    <div class="backup-btns">
+      <button class="acct-btn" data-backup>💾 Sauvegarder maintenant</button>
+      <button class="acct-btn" data-restore>↩︎ Restaurer un fichier</button>
+    </div></div>`;
 }
 
 function dataBox() {
@@ -681,13 +711,7 @@ function wire() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
   // Export / import / reset
-  $('#btn-export').addEventListener('click', () => {
-    const blob = new Blob([store.exportJSON()], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'palworld-tracker-sauvegarde.json';
-    a.click();
-  });
+  $('#btn-export').addEventListener('click', doExport);
   $('#file-import').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
     try { store.importJSON(await f.text()); render(); alert('Sauvegarde importée ✓'); }
@@ -725,6 +749,8 @@ function wire() {
     const bmode = t.closest('[data-bmode]');
     if (bmode) { ui.breedMode = bmode.dataset.bmode; renderBreeding(); return; }
 
+    if (t.closest('[data-backup]')) { doExport(); return; }
+    if (t.closest('[data-restore]')) { $('#file-import')?.click(); return; }
     if (t.closest('[data-checkupdates]')) { runUpdateCheck(true); return; }
     if (t.closest('[data-ubclose]')) { const b = document.getElementById('update-banner'); if (b) b.style.display = 'none'; return; }
 

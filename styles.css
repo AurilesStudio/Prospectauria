@@ -306,6 +306,8 @@ textarea{width:100%;min-height:70px;background:var(--card);border:1px solid var(
 .data-box .ok{color:var(--accent);font-weight:700}
 .data-box .upd{color:var(--gold);font-weight:700}
 .data-box .tool-btn{margin-top:10px}
+.backup-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.backup-btns .acct-btn{width:auto;flex:1;min-width:150px;margin-top:0}
 
 /* Écran de verrouillage (accès privé) */
 body.gated{overflow:hidden}
