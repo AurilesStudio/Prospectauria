@@ -43,6 +43,47 @@ Comme l'auto-inscription est désactivée côté Supabase **et** dans l'app (`AU
 - Une fois connecté, chaque changement est sauvegardé dans le cloud (indicateur de synchro),
   et retrouvé sur tous tes appareils.
 
+## Option : Supabase en local, via Docker (sans projet cloud)
+
+Si tu ne peux pas créer de projet sur supabase.com, tu peux faire tourner **toute la stack
+Supabase sur ta machine** avec Docker + la CLI Supabase. L'app se branche dessus à l'identique.
+
+> Pré-requis : **Docker Desktop** lancé, et la **CLI Supabase**
+> (`npm install -g supabase`, ou `brew install supabase/tap/supabase`).
+
+```bash
+# À la racine du dépôt
+supabase init      # crée supabase/config.toml (garde les migrations déjà présentes)
+supabase start     # démarre la stack Docker (Postgres, Auth, API, Studio…)
+                   # → applique automatiquement supabase/migrations/*.sql (la table progress)
+```
+
+`supabase start` affiche à la fin :
+
+```
+API URL: http://127.0.0.1:54321
+Studio URL: http://127.0.0.1:54323
+anon key: eyJhbGciOi...   <-- copie cette clé
+```
+
+**Brancher l'app** — dans l'app → **⚙️ Compte → Configurer** :
+- URL : `http://127.0.0.1:54321`
+- Clé anon : celle affichée ci-dessus
+
+**Créer ton compte** (deux options) :
+- **Le plus simple en solo** : dans [`js/config.js`](../js/config.js), mets
+  `allowSignup: true`, puis dans l'app crée ton compte (email + mot de passe au choix).
+- Ou via *Studio* (`http://127.0.0.1:54323`) → *Authentication → Add user*.
+
+**Au quotidien** : lance `supabase start` avant d'ouvrir l'app (puis `supabase stop` pour
+tout arrêter). Les données vivent dans le volume Docker de Postgres.
+`supabase db reset` réapplique les migrations à neuf.
+
+> ⚠️ Instance **locale uniquement** : accessible depuis ta machine (et ton téléphone sur le
+> même réseau via l'IP locale de ton PC, ex. `http://192.168.1.20:54321`). Rien n'est exposé
+> sur Internet. Pour un usage **solo**, `localStorage` seul (sans rien installer) fait déjà
+> le travail — Supabase local n'apporte qu'une vraie base SQL + sauvegardes structurées.
+
 ## Données stockées
 
 Table `progress` : `user_id`, `state` (JSON : Pals obtenus, favoris, notes, tâches,
